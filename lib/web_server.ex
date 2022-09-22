@@ -32,7 +32,7 @@ defmodule WebServer do
     case :gen_tcp.recv(client, 0) do
       {:ok, request} ->
         Logger.info("=== 受信しました pid=#{inspect(self())} ===")
-        {:ok, file} = File.open("server_recv.txt", [:write])
+        {:ok, file} = File.open("sample/server_recv.txt", [:write])
         IO.binwrite(file, request)
         File.close(file)
 
@@ -51,25 +51,67 @@ defmodule WebServer do
     end
   end
 
-  defp build_response(request) do
+  defp parse_request(request) do
     {[request_line], [remain]} = String.split(request, "\r\n", parts: 2) |> Enum.split(1)
-    {_request_header, _request_body} = remain |> String.split("\r\n\r\n") |> Enum.split(1)
-    [_method, path, _http_version] = request_line |> String.split(" ")
-    static_file_path = Path.join(@static_root, path)
+    {request_header, request_body} = remain |> String.split("\r\n\r\n") |> Enum.split(1)
 
-    {response_line, response_body} =
-      case File.read(static_file_path) do
-        {:ok, response_body} -> {"HTTP/1.1 200 OK\r\n", response_body}
-        {:error, _} ->
-          {
-            "HTTP/1.1 404 Not Found\r\n",
-            "<html><body><h1>404 Not Found</h1></body></html>"
-          }
+    {request_line, request_header, request_body}
+  end
+
+  defp build_response(request) do
+    {request_line, request_header, request_body} = parse_request(request)
+    [method, path, http_version] = request_line |> String.split(" ")
+    {:ok, datetime} = DateTime.now("Etc/UTC")
+
+    {response_line, response_body, content_type} =
+      case path do
+        "/now" ->
+          response_body = """
+          <html>
+            <body>
+              <h1>Now: #{datetime}</h1>
+            </body>
+          </html>
+          """
+
+          {"HTTP/1.1 200 OK\r\n", response_body, "text/html"}
+
+        "/show_request" ->
+          response_body = """
+          <html>
+            <body>
+              <h1>Request Line:</h1>
+              <p>
+                  #{method} #{path} #{http_version}
+              </p>
+              <h1>Headers:</h1>
+              <pre>#{request_header}</pre>
+              <h1>Body:</h1>
+              <pre>#{request_body}</pre>
+            </body>
+          </html>
+          """
+
+          {"HTTP/1.1 200 OK\r\n", response_body, "text/html"}
+        _ ->
+          static_file_path = Path.join(@static_root, path)
+
+          {response_line, response_body} =
+            case File.read(static_file_path) do
+              {:ok, response_body} -> {"HTTP/1.1 200 OK\r\n", response_body}
+              {:error, _} ->
+                {
+                  "HTTP/1.1 404 Not Found\r\n",
+                  "<html><body><h1>404 Not Found</h1></body></html>"
+                }
+            end
+
+          ext = Path.extname(path) |> String.replace_prefix(".", "")
+          content_type = Map.get(@mime_types, ext, "application/octet-stream")
+
+          {response_line, response_body, content_type}
       end
 
-    {:ok, datetime} = DateTime.now("Etc/UTC")
-    ext = Path.extname(path) |> String.replace_prefix(".", "")
-    content_type = Map.get(@mime_types, ext, "application/octet-stream")
     response_header = build_response_header(datetime, content_type, String.length(response_body))
 
     Logger.info(response_header)
