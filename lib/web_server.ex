@@ -4,7 +4,7 @@ defmodule WebServer do
   @base_dir File.cwd!
   @static_root Path.join([@base_dir, "static"])
   @mime_types %{
-    "html" => "text/html",
+    "html" => "text/html; charset=UTF-8",
     "css" => "text/css",
     "png" => "image/png",
     "jpg" => "image/jpg",
@@ -43,8 +43,6 @@ defmodule WebServer do
           {:error, reason} -> Logger.error(inspect(reason))
         end
 
-        :gen_tcp.close(client)
-
       {:error, reason} ->
         Logger.error(inspect(reason))
         :gen_tcp.close(client)
@@ -74,7 +72,7 @@ defmodule WebServer do
           </html>
           """
 
-          {"HTTP/1.1 200 OK\r\n", response_body, "text/html"}
+          {"HTTP/1.1 200 OK", response_body, "text/html; charset=UTF-8"}
 
         "/show_request" ->
           response_body = """
@@ -92,18 +90,19 @@ defmodule WebServer do
           </html>
           """
 
-          {"HTTP/1.1 200 OK\r\n", response_body, "text/html"}
+          {"HTTP/1.1 200 OK", response_body, "text/html; charset=UTF-8"}
         _ ->
           static_file_path = Path.join(@static_root, path)
 
           {response_line, response_body} =
             case File.read(static_file_path) do
-              {:ok, response_body} -> {"HTTP/1.1 200 OK\r\n", response_body}
-              {:error, _} ->
-                {
-                  "HTTP/1.1 404 Not Found\r\n",
-                  "<html><body><h1>404 Not Found</h1></body></html>"
-                }
+              {:ok, response_body} ->
+                {"HTTP/1.1 200 OK", response_body}
+                {:error, _} ->
+                  {
+                    "HTTP/1.1 404 Not Found",
+                    "<html><body><h1>404 Not Found</h1></body></html>"
+                  }
             end
 
           ext = Path.extname(path) |> String.replace_prefix(".", "")
@@ -112,14 +111,15 @@ defmodule WebServer do
           {response_line, response_body, content_type}
       end
 
-    response_header = build_response_header(datetime, content_type, String.length(response_body))
+    response_header = build_response_header(datetime, content_type, byte_size(response_body))
 
+    Logger.info(response_line)
     Logger.info(response_header)
-    if content_type == "text/html" do
+    if content_type == "text/html; charset=UTF-8" do
       Logger.info(response_body)
     end
 
-    response_line <> response_header <> "\r\n" <> response_body
+    response_line <> "\r\n" <> response_header <> "\r\n" <> response_body
   end
 
   defp build_response_header(now, content_type, content_length) do
