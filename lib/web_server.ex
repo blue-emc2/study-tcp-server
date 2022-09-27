@@ -51,7 +51,7 @@ defmodule WebServer do
 
   defp parse_request(request) do
     {[request_line], [remain]} = String.split(request, "\r\n", parts: 2) |> Enum.split(1)
-    {request_header, request_body} = remain |> String.split("\r\n\r\n") |> Enum.split(1)
+    {request_header, [request_body]} = remain |> String.split("\r\n\r\n") |> Enum.split(1)
 
     {request_line, request_header, request_body}
   end
@@ -91,6 +91,10 @@ defmodule WebServer do
           """
 
           {"HTTP/1.1 200 OK", response_body, "text/html; charset=UTF-8"}
+
+        "/parameters" ->
+          parameters(request_body, method)
+
         _ ->
           static_file_path = Path.join(@static_root, path)
 
@@ -129,5 +133,30 @@ defmodule WebServer do
     response_header = response_header <> "Content-Length: #{content_length}\r\n"
     response_header = response_header <> "Connection: Close\r\n"
     response_header <> "Content-Type: #{content_type}\r\n"
+  end
+
+  defp parameters(_request_body, method) when method == "GET" do
+    response_body = "<html><body><h1>405 Method Not Allowed</h1></body></html>"
+    content_type = "text/html; charset=UTF-8"
+    response_line = "HTTP/1.1 405 Method Not Allowed"
+
+    {response_line, response_body, content_type}
+  end
+
+  defp parameters(request_body, method) when method == "POST" do
+    parameter_map = URI.decode(request_body) |> String.split("&") |> Enum.map(fn param -> String.split(param, "=") end) |> Enum.map(fn [k, v] -> "#{k}: #{v}\r\n" end)
+
+    response_body = """
+      <html>
+      <body>
+          <h1>Parameters:</h1>
+          <pre>#{parameter_map}</pre>
+      </body>
+      </html>
+    """
+    content_type = "text/html; charset=UTF-8"
+    response_line = "HTTP/1.1 200 OK"
+
+    {response_line, response_body, content_type}
   end
 end
