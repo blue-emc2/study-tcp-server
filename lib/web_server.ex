@@ -1,16 +1,6 @@
 defmodule WebServer do
   require Logger
 
-  @base_dir File.cwd!
-  @static_root Path.join([@base_dir, "static"])
-  @mime_types %{
-    "html" => "text/html; charset=UTF-8",
-    "css" => "text/css",
-    "png" => "image/png",
-    "jpg" => "image/jpg",
-    "gif" => "image/gif",
-  }
-
   def run do
     Logger.info("=== サーバーを起動します pid=#{inspect(self())} ===")
     {:ok, socket} = :gen_tcp.listen(8080, [:binary, packet: 0, active: false, reuseaddr: true])
@@ -29,134 +19,23 @@ defmodule WebServer do
   end
 
   defp serve(client) do
-    case :gen_tcp.recv(client, 0) do
-      {:ok, request} ->
-        Logger.info("=== 受信しました pid=#{inspect(self())} ===")
-        {:ok, file} = File.open("sample/server_recv.txt", [:write])
-        IO.binwrite(file, request)
-        File.close(file)
+    response =
+      with {:ok, data} <- read_request(client),
+        request <- StudyTcpServer.Request.parse(data),
+        {status_code, response_body, content_type} <- StudyTcpServer.ActionHandle.dispatch(request),
+        do: StudyTcpServer.Response.build(status_code, response_body, content_type)
 
-        response = build_response(request)
+    send_response(client, response)
+  end
 
-        case :gen_tcp.send(client, response) do
-          :ok -> Logger.info("=== 送信成功です pid=#{inspect(self())} ===")
-          {:error, reason} -> Logger.error(inspect(reason))
-        end
+  defp read_request(client) do
+    :gen_tcp.recv(client, 0)
+  end
 
-      {:error, reason} ->
-        Logger.error(inspect(reason))
-        :gen_tcp.close(client)
+  defp send_response(client, response) do
+    case :gen_tcp.send(client, response) do
+      :ok -> Logger.info("=== 送信成功です pid=#{inspect(self())} ===")
+      {:error, reason} -> Logger.error(inspect(reason))
     end
-  end
-
-  defp parse_request(request) do
-    {[request_line], [remain]} = String.split(request, "\r\n", parts: 2) |> Enum.split(1)
-    {request_header, [request_body]} = remain |> String.split("\r\n\r\n") |> Enum.split(1)
-
-    {request_line, request_header, request_body}
-  end
-
-  defp build_response(request) do
-    {request_line, request_header, request_body} = parse_request(request)
-    [method, path, http_version] = request_line |> String.split(" ")
-    {:ok, datetime} = DateTime.now("Etc/UTC")
-
-    {response_line, response_body, content_type} =
-      case path do
-        "/now" ->
-          response_body = """
-          <html>
-            <body>
-              <h1>Now: #{datetime}</h1>
-            </body>
-          </html>
-          """
-
-          {"HTTP/1.1 200 OK", response_body, "text/html; charset=UTF-8"}
-
-        "/show_request" ->
-          response_body = """
-          <html>
-            <body>
-              <h1>Request Line:</h1>
-              <p>
-                  #{method} #{path} #{http_version}
-              </p>
-              <h1>Headers:</h1>
-              <pre>#{request_header}</pre>
-              <h1>Body:</h1>
-              <pre>#{request_body}</pre>
-            </body>
-          </html>
-          """
-
-          {"HTTP/1.1 200 OK", response_body, "text/html; charset=UTF-8"}
-
-        "/parameters" ->
-          parameters(request_body, method)
-
-        _ ->
-          static_file_path = Path.join(@static_root, path)
-
-          {response_line, response_body} =
-            case File.read(static_file_path) do
-              {:ok, response_body} ->
-                {"HTTP/1.1 200 OK", response_body}
-                {:error, _} ->
-                  {
-                    "HTTP/1.1 404 Not Found",
-                    "<html><body><h1>404 Not Found</h1></body></html>"
-                  }
-            end
-
-          ext = Path.extname(path) |> String.replace_prefix(".", "")
-          content_type = Map.get(@mime_types, ext, "application/octet-stream")
-
-          {response_line, response_body, content_type}
-      end
-
-    response_header = build_response_header(datetime, content_type, byte_size(response_body))
-
-    Logger.info(response_line)
-    Logger.info(response_header)
-    if content_type == "text/html; charset=UTF-8" do
-      Logger.info(response_body)
-    end
-
-    response_line <> "\r\n" <> response_header <> "\r\n" <> response_body
-  end
-
-  defp build_response_header(now, content_type, content_length) do
-    response_header = ""
-    response_header = response_header <> "Date: #{Calendar.strftime(now, "%a, %d %b %Y %H:%M:%S GMT")}"
-    response_header = response_header <> "Host: HenaServer/0.1\r\n"
-    response_header = response_header <> "Content-Length: #{content_length}\r\n"
-    response_header = response_header <> "Connection: Close\r\n"
-    response_header <> "Content-Type: #{content_type}\r\n"
-  end
-
-  defp parameters(_request_body, method) when method == "GET" do
-    response_body = "<html><body><h1>405 Method Not Allowed</h1></body></html>"
-    content_type = "text/html; charset=UTF-8"
-    response_line = "HTTP/1.1 405 Method Not Allowed"
-
-    {response_line, response_body, content_type}
-  end
-
-  defp parameters(request_body, method) when method == "POST" do
-    parameter_map = URI.decode(request_body) |> String.split("&") |> Enum.map(fn param -> String.split(param, "=") end) |> Enum.map(fn [k, v] -> "#{k}: #{v}\r\n" end)
-
-    response_body = """
-      <html>
-      <body>
-          <h1>Parameters:</h1>
-          <pre>#{parameter_map}</pre>
-      </body>
-      </html>
-    """
-    content_type = "text/html; charset=UTF-8"
-    response_line = "HTTP/1.1 200 OK"
-
-    {response_line, response_body, content_type}
   end
 end
