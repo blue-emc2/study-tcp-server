@@ -15,13 +15,13 @@ defmodule StudyTcpServer.ActionHandle do
     "gif" => "image/gif",
   }
 
-  def dispatch(%Request{line: line} = request) do
-    parse(line, request)
+  def dispatch(%Request{} = request) do
+    parse(request)
     |> run()
   end
 
-  defp parse(line, request) do
-    case String.split(line) do
+  defp parse(request) do
+    case [request.method, request.path, request.http_version] do
       ["GET", "/now", _http_version] -> {:get, :now}
       ["GET", "/show_request", http_version] -> {:get, :show_request, ["GET", "/show_request", http_version, request]}
       ["GET", "/parameters", _http_version] -> {:get, :parameters}

@@ -5,8 +5,15 @@ defmodule StudyTcpServer.ActionHandleTest do
 
   doctest StudyTcpServer.ActionHandle
 
+  @http_version "HTTP/1.1"
+
   test "/now" do
-    {status_code, response_body, content_type} = ActionHandle.dispatch(%Request{line: "GET /now HTTP/1.1"})
+    {status_code, response_body, content_type} =
+      ActionHandle.dispatch(%Request{
+        method: "GET",
+        path: "/now",
+        http_version: @http_version
+        })
     assert status_code == 200
     assert String.match?(response_body, ~r/<h1>Now:/)
     assert content_type == "text/html; charset=UTF-8"
@@ -15,7 +22,9 @@ defmodule StudyTcpServer.ActionHandleTest do
   test "/show_request" do
     {status_code, response_body, content_type} =
       ActionHandle.dispatch(%Request{
-        line: "GET /show_request HTTP/1.1",
+        method: "GET",
+        path: "/show_request",
+        http_version: @http_version,
         headers: ["Host: localhost:8080"],
         body: "body=sample"
         })
@@ -28,7 +37,11 @@ defmodule StudyTcpServer.ActionHandleTest do
 
   test "GET /parameters" do
     {status_code, response_body, content_type} =
-      ActionHandle.dispatch(%Request{line: "GET /parameters HTTP/1.1"})
+      ActionHandle.dispatch(%Request{
+        method: "GET",
+        path: "/parameters",
+        http_version: @http_version,
+        })
 
     assert status_code == 405
     assert String.match?(response_body, ~r/<h1>405 Method Not Allowed<\/h1>/)
@@ -37,7 +50,12 @@ defmodule StudyTcpServer.ActionHandleTest do
 
   test "POST /parameters" do
     {status_code, response_body, content_type} =
-      ActionHandle.dispatch(%Request{line: "POST /parameters HTTP/1.1", body: "body=sample"})
+      ActionHandle.dispatch(%Request{
+        method: "POST",
+        path: "/parameters",
+        http_version: @http_version,
+        body: "body=sample"
+        })
 
     assert status_code == 200
     assert String.match?(response_body, ~r/<pre>body: sample\r\n<\/pre>/)
