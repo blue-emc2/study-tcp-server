@@ -96,19 +96,20 @@ defmodule StudyTcpServer.ActionHandle do
   defp run({:get, path}) do
     static_file_path = Path.join(@static_root, path)
 
-    {status_code, response_body} =
+    {status_code, response_body, content_type} =
       case File.read(static_file_path) do
         {:ok, response_body} ->
-          {200, response_body}
-          {:error, _} ->
-            {
-              404,
-              "<html><body><h1>404 Not Found</h1></body></html>"
-            }
-      end
+          ext = Path.extname(path) |> String.replace_prefix(".", "")
+          content_type = Map.get(@mime_types, ext, "application/octet-stream")
 
-    ext = Path.extname(path) |> String.replace_prefix(".", "")
-    content_type = Map.get(@mime_types, ext, "application/octet-stream")
+          {200, response_body, content_type}
+        {:error, _} ->
+          {
+            404,
+            "<html><body><h1>404 Not Found</h1></body></html>",
+            Map.get(@mime_types, "html")
+          }
+      end
 
     {status_code, response_body, content_type}
   end

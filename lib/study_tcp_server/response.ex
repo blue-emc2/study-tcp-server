@@ -10,7 +10,7 @@ defmodule StudyTcpServer.Response do
 
   defp build_response_header(now, content_type, content_length) do
     response_header = ""
-    response_header = response_header <> "Date: #{Calendar.strftime(now, "%a, %d %b %Y %H:%M:%S GMT")}"
+    response_header = response_header <> "Date: #{Calendar.strftime(now, "%a, %d %b %Y %H:%M:%S GMT")}\r\n"
     response_header = response_header <> "Host: HenaServer/0.1\r\n"
     response_header = response_header <> "Content-Length: #{content_length}\r\n"
     response_header = response_header <> "Connection: Close\r\n"
