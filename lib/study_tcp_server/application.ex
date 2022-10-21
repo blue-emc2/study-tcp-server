@@ -4,6 +4,7 @@ defmodule StudyTcpServer.Application do
   @moduledoc false
 
   use Application
+  alias StudyTcpServer.Server.WebServer
 
   @impl true
   def start(_type, _args) do

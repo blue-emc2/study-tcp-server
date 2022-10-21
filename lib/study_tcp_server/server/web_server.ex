@@ -1,5 +1,6 @@
-defmodule WebServer do
+defmodule StudyTcpServer.Server.WebServer do
   require Logger
+  alias StudyTcpServer.Server.WebServer
 
   def run do
     Logger.info("=== サーバーを起動します pid=#{inspect(self())} ===")
@@ -25,6 +26,7 @@ defmodule WebServer do
         {status_code, response_body, content_type} <- StudyTcpServer.ActionHandle.dispatch(request),
         do: StudyTcpServer.Response.build(status_code, response_body, content_type)
 
+    IO.inspect(response)
     send_response(client, response)
   end
 
