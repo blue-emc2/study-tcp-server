@@ -36,15 +36,14 @@ defmodule StudyTcpServer.ActionHandle do
 
   defp run({:get, :now}) do
     {:ok, datetime} = DateTime.now("Etc/UTC")
-    response_body = """
-    <html>
-      <body>
-        <h1>Now: #{datetime}</h1>
-      </body>
-    </html>
-    """
 
-    {200, response_body, "text/html; charset=UTF-8"}
+    {_, html} =
+      case File.read("./templates/now.html") do
+        {:ok, html} -> {:ok, to_string(:io_lib.format(html, [DateTime.to_string(datetime)]))}
+        {:error, reason} -> {:error, reason}
+      end
+
+    {200, html, "text/html; charset=UTF-8"}
   end
 
   defp run({:get, :show_request, [method, path, http_version, request]}) do
@@ -98,8 +97,6 @@ defmodule StudyTcpServer.ActionHandle do
   end
 
   defp run({:get, :profile, [request]}) do
-    IO.inspect(request.params)
-
     user_id = request.params[:user_id]
     html = """
     <html>

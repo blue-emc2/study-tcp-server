@@ -26,7 +26,7 @@ defmodule StudyTcpServer.Server.WebServer do
         {status_code, response_body, content_type} <- StudyTcpServer.ActionHandle.dispatch(request),
         do: StudyTcpServer.Response.build(status_code, response_body, content_type)
 
-    IO.inspect(response)
+    Logger.info(inspect(response))
     send_response(client, response)
   end
 
