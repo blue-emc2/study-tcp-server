@@ -1,21 +1,11 @@
-# StudyTcpServer
+こちら↓の記事のElixir版を書いてみた
 
-**TODO: Add description**
+https://zenn.dev/bigen1925/books/introduction-to-web-application-with-python
 
-## Installation
+Webアプリケーションについてはなんとなく理解していたつもりだけど、
+自分で書いてみるとやっぱり分かっていない部分が多かった事に気が付けてよかった。
 
-If [available in Hex](https://hex.pm/docs/publish), the package can be installed
-by adding `study_tcp_server` to your list of dependencies in `mix.exs`:
+Chapterの順番も外堀から埋めるような形で進んでいるので、とても理解しやすかった。
+とても良い記事でした。
 
-```elixir
-def deps do
-  [
-    {:study_tcp_server, "~> 0.1.0"}
-  ]
-end
-```
-
-Documentation can be generated with [ExDoc](https://github.com/elixir-lang/ex_doc)
-and published on [HexDocs](https://hexdocs.pm). Once published, the docs can
-be found at <https://hexdocs.pm/study_tcp_server>.
-
+※ 書いたのはChapter 19の途中まで
